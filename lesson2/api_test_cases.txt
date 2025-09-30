@@ -1,0 +1,20 @@
+PUT http://localhost:5000/books/1
+{
+  "is_available": false
+}
+
+
+POST http://localhost:5000/loans/checkout
+
+{
+  "book_id": 2,
+  "user_id": 1
+}
+
+PUT http://localhost:5000/loans/return/1
+
+GET http://localhost:5000/loans/
+
+GET http://localhost:5000/loans/active
+
+GET http://localhost:5000/loans/user/1
