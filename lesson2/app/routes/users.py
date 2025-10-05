@@ -1,34 +1,76 @@
 from flask import Blueprint, jsonify, request
 from app.models import User
 from app.extension import db
+from app.routes.auth import token_required, admin_required
 
 users_bp = Blueprint("users", __name__)
 
+# ADMIN - Xem tất cả users (chỉ admin)
 @users_bp.route("/", methods=["GET"])
-def get_users():
+@admin_required
+def get_users(current_user):
     users = User.query.all()
-    return jsonify([{"id": u.id, "name": u.name, "email": u.email} for u in users])
+    return jsonify([{"id": u.id, "name": u.name, "email": u.email, "role": u.role} for u in users])
 
+# USER - Xem thông tin user (user xem được tất cả)
 @users_bp.route("/<int:user_id>", methods=["GET"])
-def get_user(user_id):
+@token_required
+def get_user(current_user, user_id):
     user = User.query.get_or_404(user_id)
-    return jsonify({"id": user.id, "name": user.name, "email": user.email})
+    return jsonify({"id": user.id, "name": user.name, "email": user.email, "role": user.role})
 
-@users_bp.route("/", methods=["POST"])
-def add_user():
+@users_bp.route("/me", methods=["GET"])
+@token_required
+def get_current_user(current_user):
+    return jsonify({
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role
+    })
+
+@users_bp.route("/me", methods=["PUT"])
+@token_required
+def update_current_user(current_user):
     data = request.json
     
-    existing_user = User.query.filter_by(email=data["email"]).first()
-    if existing_user:
-        return jsonify({"error": "Email đã tồn tại"}), 400
+    if "name" in data and data["name"]:
+        current_user.name = data["name"]
     
-    user = User(name=data["name"], email=data["email"])
-    db.session.add(user)
+    if "email" in data and data["email"]:
+        # Kiểm tra email mới có trùng với user khác không
+        existing = User.query.filter(User.email == data["email"], User.id != current_user.id).first()
+        if existing:
+            return jsonify({"error": "Email đã tồn tại"}), 400
+        current_user.email = data["email"]
+    
     db.session.commit()
-    return jsonify({"message": "User added", "id": user.id}), 201
+    return jsonify({"message": "User updated"})
+
+@users_bp.route("/<int:user_id>", methods=["PUT"])
+@admin_required
+def update_user(current_user, user_id):
+    data = request.json
+    user = User.query.get_or_404(user_id)
+    
+    if "name" in data and data["name"]:
+        user.name = data["name"]
+    
+    if "email" in data and data["email"]:
+        existing = User.query.filter(User.email == data["email"], User.id != user_id).first()
+        if existing:
+            return jsonify({"error": "Email đã tồn tại"}), 400
+        user.email = data["email"]
+    
+    if "role" in data and data["role"] in ["user", "admin"]:
+        user.role = data["role"]
+    
+    db.session.commit()
+    return jsonify({"message": "User updated"})
 
 @users_bp.route("/<int:user_id>", methods=["DELETE"])
-def delete_user(user_id):
+@admin_required
+def delete_user(current_user, user_id):
     user = User.query.get_or_404(user_id)
     db.session.delete(user)
     db.session.commit()

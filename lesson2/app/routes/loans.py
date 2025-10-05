@@ -2,11 +2,13 @@ from flask import Blueprint, jsonify, request
 from app.models import Loan, Book, User
 from app.extension import db
 from datetime import date
+from app.routes.auth import token_required, admin_required
 
 loans_bp = Blueprint("loans", __name__)
 
 @loans_bp.route("/", methods=["GET"])
-def get_loans():
+@admin_required
+def get_loans(current_user):
     loans = Loan.query.all()
     result = []
     for loan in loans:
@@ -22,7 +24,8 @@ def get_loans():
     return jsonify(result)
 
 @loans_bp.route("/<int:loan_id>", methods=["GET"])
-def get_loan(loan_id):
+@token_required
+def get_loan(current_user, loan_id):
     loan = Loan.query.get_or_404(loan_id)
     return jsonify({
         "loan_id": loan.loan_id,
@@ -35,25 +38,23 @@ def get_loan(loan_id):
     })
 
 @loans_bp.route("/checkout", methods=["POST"])
-def checkout_book():
+@token_required
+def checkout_book(current_user):
     data = request.json
     
-    if "book_id" not in data or "user_id" not in data:
-        return jsonify({"error": "Cần có book_id và user_id"}), 400
+    if "book_id" not in data:
+        return jsonify({"error": "Cần có book_id"}), 400
     
     book_id = data["book_id"]
-    user_id = data["user_id"]
     
     book = Book.query.get_or_404(book_id)
-    
-    user = User.query.get_or_404(user_id)
     
     if not book.is_available:
         return jsonify({"error": "Sách này đang được mượn"}), 400
     
     loan = Loan(
         book_id=book_id,
-        user_id=user_id,
+        user_id=current_user.id,
         checkout_date=date.today()
     )
     
@@ -69,7 +70,8 @@ def checkout_book():
     }), 201
 
 @loans_bp.route("/return/<int:loan_id>", methods=["PUT"])
-def return_book(loan_id):
+@admin_required
+def return_book(current_user, loan_id):
     loan = Loan.query.get_or_404(loan_id)
     
     if loan.return_date:
@@ -88,7 +90,8 @@ def return_book(loan_id):
     })
 
 @loans_bp.route("/active", methods=["GET"])
-def get_active_loans():
+@admin_required
+def get_active_loans(current_user):
     active_loans = Loan.query.filter(Loan.return_date == None).all()
     result = []
     for loan in active_loans:
@@ -100,8 +103,26 @@ def get_active_loans():
         })
     return jsonify(result)
 
+@loans_bp.route("/my-loans", methods=["GET"])
+@token_required
+def get_my_loans(current_user):
+    loans = Loan.query.filter_by(user_id=current_user.id).all()
+    result = []
+    for loan in loans:
+        result.append({
+            "loan_id": loan.loan_id,
+            "book_title": loan.book.title,
+            "checkout_date": str(loan.checkout_date),
+            "return_date": str(loan.return_date) if loan.return_date else "Chưa trả"
+        })
+    return jsonify({
+        "user_name": current_user.name,
+        "loans": result
+    })
+
 @loans_bp.route("/user/<int:user_id>", methods=["GET"])
-def get_user_loans(user_id):
+@admin_required
+def get_user_loans(current_user, user_id):
     user = User.query.get_or_404(user_id)
     loans = Loan.query.filter_by(user_id=user_id).all()
     result = []
@@ -118,7 +139,8 @@ def get_user_loans(user_id):
     })
 
 @loans_bp.route("/<int:loan_id>", methods=["DELETE"])
-def delete_loan(loan_id):
+@admin_required
+def delete_loan(current_user, loan_id):
     loan = Loan.query.get_or_404(loan_id)
     
     if not loan.return_date:
