@@ -2,3 +2,5 @@ flask
 flask-sqlalchemy
 psycopg2-binary
 PyJWT
+Flask-Caching
+requests
