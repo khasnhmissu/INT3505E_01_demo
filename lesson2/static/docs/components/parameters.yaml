@@ -1,0 +1,53 @@
+parameters:
+  IfNoneMatch:
+    name: If-None-Match
+    in: header
+    description: ETag để kiểm tra conditional request
+    schema:
+      type: string
+    example: "33a64df551425fcc55e4d42a148795d9f25f89d4"
+
+  IfModifiedSince:
+    name: If-Modified-Since
+    in: header
+    description: Ngày giờ để kiểm tra tài nguyên có thay đổi không
+    schema:
+      type: string
+      format: date-time
+    example: "Wed, 09 Oct 2025 12:00:00 GMT"
+
+  Authorization:
+    name: Authorization
+    in: header
+    description: Bearer token để xác thực
+    required: true
+    schema:
+      type: string
+    example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+  BookId:
+    name: book_id
+    in: path
+    required: true
+    description: ID của sách
+    schema:
+      type: integer
+    example: 1
+
+  UserId:
+    name: user_id
+    in: path
+    required: true
+    description: ID của người dùng
+    schema:
+      type: integer
+    example: 1
+
+  LoanId:
+    name: loan_id
+    in: path
+    required: true
+    description: ID của giao dịch mượn
+    schema:
+      type: integer
+    example: 1

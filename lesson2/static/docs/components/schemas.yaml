@@ -1,0 +1,200 @@
+schemas:
+  Error:
+    type: object
+    properties:
+      error:
+        type: string
+        description: Thông báo lỗi
+    required:
+      - error
+
+  Book:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: ID của sách
+        example: 1
+      title:
+        type: string
+        description: Tên sách
+        example: "Clean Code"
+      author:
+        type: string
+        nullable: true
+        description: Tác giả
+        example: "Robert C. Martin"
+      is_available:
+        type: boolean
+        description: Trạng thái sẵn có
+        example: true
+    required:
+      - id
+      - title
+      - is_available
+
+  BookInput:
+    type: object
+    properties:
+      title:
+        type: string
+        description: Tên sách
+        example: "Clean Code"
+      author:
+        type: string
+        description: Tác giả
+        example: "Robert C. Martin"
+      is_available:
+        type: boolean
+        description: Trạng thái sẵn có
+        default: true
+        example: true
+    required:
+      - title
+
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: ID người dùng
+        example: 1
+      name:
+        type: string
+        description: Tên người dùng
+        example: "Nguyễn Văn A"
+      email:
+        type: string
+        format: email
+        description: Email
+        example: "user@example.com"
+      role:
+        type: string
+        enum: [user, admin]
+        description: Vai trò
+        example: "user"
+    required:
+      - id
+      - name
+      - email
+      - role
+
+  RegisterInput:
+    type: object
+    properties:
+      name:
+        type: string
+        description: Tên người dùng
+        example: "Nguyễn Văn A"
+      email:
+        type: string
+        format: email
+        description: Email
+        example: "user@example.com"
+      password:
+        type: string
+        format: password
+        description: Mật khẩu
+        minLength: 6
+        example: "password123"
+    required:
+      - email
+      - password
+
+  LoginInput:
+    type: object
+    properties:
+      email:
+        type: string
+        format: email
+        description: Email
+        example: "user@example.com"
+      password:
+        type: string
+        format: password
+        description: Mật khẩu
+        example: "password123"
+    required:
+      - email
+      - password
+
+  LoginResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        example: "Đăng nhập thành công"
+      token:
+        type: string
+        description: JWT token
+        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      user:
+        $ref: '#/schemas/User'
+    required:
+      - message
+      - token
+      - user
+
+  Loan:
+    type: object
+    properties:
+      loan_id:
+        type: integer
+        description: ID giao dịch mượn
+        example: 1
+      book_id:
+        type: integer
+        description: ID sách
+        example: 1
+      book_title:
+        type: string
+        description: Tên sách
+        example: "Clean Code"
+      user_id:
+        type: integer
+        description: ID người mượn
+        example: 1
+      user_name:
+        type: string
+        description: Tên người mượn
+        example: "Nguyễn Văn A"
+      checkout_date:
+        type: string
+        format: date
+        description: Ngày mượn
+        example: "2025-10-09"
+      return_date:
+        type: string
+        format: date
+        nullable: true
+        description: Ngày trả (null nếu chưa trả)
+        example: "2025-10-16"
+    required:
+      - loan_id
+      - book_id
+      - book_title
+      - user_id
+      - user_name
+      - checkout_date
+
+  CheckoutInput:
+    type: object
+    properties:
+      book_id:
+        type: integer
+        description: ID sách cần mượn
+        example: 1
+    required:
+      - book_id
+
+  SearchBooksResponse:
+    type: object
+    properties:
+      books:
+        type: array
+        items:
+          $ref: '#/schemas/Book'
+      from_cache:
+        type: boolean
+        description: Dữ liệu có từ cache không
+        example: false

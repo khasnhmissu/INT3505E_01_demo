@@ -1,0 +1,1378 @@
+openapi: 3.1.3
+info:
+  title: Library Management System API
+  description: RESTful API cho hệ thống quản lý thư viện với các tính năng - Xác thực người dùng (JWT), Quản lý sách, Quản lý mượn/trả sách, Quản lý người dùng
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@library.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.library.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Đăng ký, đăng nhập và quản lý phiên
+  - name: Books
+    description: Quản lý sách (CRUD operations)
+  - name: Loans
+    description: Quản lý mượn/trả sách
+  - name: Users
+    description: Quản lý người dùng
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token nhận được từ endpoint /auth/login
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Thông báo lỗi
+      required:
+        - error
+
+    Book:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID của sách
+          example: 1
+        title:
+          type: string
+          description: Tên sách
+          example: "Clean Code"
+        author:
+          type: string
+          nullable: true
+          description: Tác giả
+          example: "Robert C. Martin"
+        is_available:
+          type: boolean
+          description: Trạng thái sẵn có
+          example: true
+      required:
+        - id
+        - title
+        - is_available
+
+    BookInput:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Tên sách
+          example: "Clean Code"
+        author:
+          type: string
+          description: Tác giả
+          example: "Robert C. Martin"
+        is_available:
+          type: boolean
+          description: Trạng thái sẵn có
+          default: true
+          example: true
+      required:
+        - title
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID người dùng
+          example: 1
+        name:
+          type: string
+          description: Tên người dùng
+          example: "Nguyễn Văn A"
+        email:
+          type: string
+          format: email
+          description: Email
+          example: "user@example.com"
+        role:
+          type: string
+          enum: [user, admin]
+          description: Vai trò
+          example: "user"
+      required:
+        - id
+        - name
+        - email
+        - role
+
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Tên người dùng
+          example: "Nguyễn Văn A"
+        email:
+          type: string
+          format: email
+          description: Email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          description: Mật khẩu
+          minLength: 6
+          example: "password123"
+      required:
+        - email
+        - password
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          description: Mật khẩu
+          example: "password123"
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Đăng nhập thành công"
+        token:
+          type: string
+          description: JWT token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - message
+        - token
+        - user
+
+    Loan:
+      type: object
+      properties:
+        loan_id:
+          type: integer
+          description: ID giao dịch mượn
+          example: 1
+        book_id:
+          type: integer
+          description: ID sách
+          example: 1
+        book_title:
+          type: string
+          description: Tên sách
+          example: "Clean Code"
+        user_id:
+          type: integer
+          description: ID người mượn
+          example: 1
+        user_name:
+          type: string
+          description: Tên người mượn
+          example: "Nguyễn Văn A"
+        checkout_date:
+          type: string
+          format: date
+          description: Ngày mượn
+          example: "2025-10-09"
+        return_date:
+          type: string
+          format: date
+          nullable: true
+          description: Ngày trả (null nếu chưa trả)
+          example: "2025-10-16"
+      required:
+        - loan_id
+        - book_id
+        - book_title
+        - user_id
+        - user_name
+        - checkout_date
+
+    CheckoutInput:
+      type: object
+      properties:
+        book_id:
+          type: integer
+          description: ID sách cần mượn
+          example: 1
+      required:
+        - book_id
+
+    SearchBooksResponse:
+      type: object
+      properties:
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+        from_cache:
+          type: boolean
+          description: Dữ liệu có từ cache không
+          example: false
+
+  responses:
+    UnauthorizedError:
+      description: Token không hợp lệ hoặc hết hạn
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            noToken:
+              value:
+                error: "Cần đăng nhập"
+            invalidToken:
+              value:
+                error: "Token không hợp lệ"
+            expiredToken:
+              value:
+                error: "Token đã hết hạn"
+
+    ForbiddenError:
+      description: Không có quyền truy cập
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Bạn không có quyền thực hiện hành động này"
+
+    NotFoundError:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "404 Not Found"
+
+    BadRequestError:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotModified:
+      description: Tài nguyên không thay đổi (304 Not Modified)
+      headers:
+        ETag:
+          schema:
+            type: string
+          description: Entity tag của tài nguyên
+        Cache-Control:
+          schema:
+            type: string
+          description: Cache directives
+          example: "private, max-age=30, must-revalidate"
+
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      description: ETag để kiểm tra conditional request
+      schema:
+        type: string
+      example: "33a64df551425fcc55e4d42a148795d9f25f89d4"
+
+    IfModifiedSince:
+      name: If-Modified-Since
+      in: header
+      description: Ngày giờ để kiểm tra tài nguyên có thay đổi không
+      schema:
+        type: string
+        format: date-time
+      example: "Wed, 09 Oct 2025 12:00:00 GMT"
+
+    Authorization:
+      name: Authorization
+      in: header
+      description: Bearer token để xác thực
+      required: true
+      schema:
+        type: string
+      example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Đăng ký tài khoản mới
+      description: Tạo tài khoản người dùng mới (role mặc định là 'user')
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+            examples:
+              newUser:
+                value:
+                  name: "Nguyễn Văn A"
+                  email: "user@example.com"
+                  password: "password123"
+      responses:
+        '201':
+          description: Đăng ký thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user_id:
+                    type: integer
+              example:
+                message: "Đăng ký thành công"
+                user_id: 1
+        '400':
+          description: Thiếu thông tin hoặc email đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingFields:
+                  value:
+                    error: "Email và password là bắt buộc"
+                emailExists:
+                  value:
+                    error: "Email đã tồn tại"
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Đăng nhập
+      description: Đăng nhập và nhận JWT token
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            examples:
+              validLogin:
+                value:
+                  email: "user@example.com"
+                  password: "password123"
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Thiếu thông tin đăng nhập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Email và password là bắt buộc"
+        '401':
+          description: Email hoặc mật khẩu không đúng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Email hoặc password không đúng"
+
+  /auth/create-admin:
+    post:
+      tags:
+        - Authentication
+      summary: Tạo tài khoản admin
+      description: Tạo tài khoản admin đầu tiên (chỉ được tạo 1 lần)
+      operationId: createAdmin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+            examples:
+              adminAccount:
+                value:
+                  name: "Admin"
+                  email: "admin@example.com"
+                  password: "admin123"
+      responses:
+        '201':
+          description: Tạo admin thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user_id:
+                    type: integer
+              example:
+                message: "Tạo admin thành công"
+                user_id: 1
+        '400':
+          description: Đã có admin hoặc thiếu thông tin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                adminExists:
+                  value:
+                    error: "Đã có admin trong hệ thống"
+                missingFields:
+                  value:
+                    error: "Email và password là bắt buộc"
+
+  /books/:
+    get:
+      tags:
+        - Books
+      summary: Lấy danh sách tất cả sách
+      description: Lấy danh sách sách với server-side caching (60s). Cache-Control public max-age=60, Vary Accept-Language
+      operationId: getBooks
+      security: []
+      responses:
+        '200':
+          description: Danh sách sách
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Cache directives
+              example: "public, max-age=60"
+            Vary:
+              schema:
+                type: string
+              description: Vary header
+              example: "Accept-Language"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+              example:
+                - id: 1
+                  title: "Clean Code"
+                  author: "Robert C. Martin"
+                  is_available: true
+                - id: 2
+                  title: "Design Patterns"
+                  author: "Gang of Four"
+                  is_available: false
+
+    post:
+      tags:
+        - Books
+      summary: Thêm sách mới
+      description: Thêm sách mới vào thư viện (chỉ admin). Cache no-store - không được cache
+      operationId: addBook
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+            examples:
+              newBook:
+                value:
+                  title: "Clean Architecture"
+                  author: "Robert C. Martin"
+                  is_available: true
+      responses:
+        '201':
+          description: Thêm sách thành công
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "no-store"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
+              example:
+                message: "Book added"
+                id: 3
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /books/{book_id}:
+    get:
+      tags:
+        - Books
+      summary: Lấy thông tin chi tiết một cuốn sách
+      description: Lấy thông tin sách theo ID với ETag và Last-Modified validation. Hỗ trợ conditional requests với If-None-Match và If-Modified-Since
+      operationId: getBook
+      security: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          description: ID của sách
+          schema:
+            type: integer
+            example: 1
+        - name: If-None-Match
+          in: header
+          required: false
+          description: ETag để kiểm tra conditional request
+          schema:
+            type: string
+            example: "33a64df551425fcc55e4d42a148795d9f25f89d4"
+        - name: If-Modified-Since
+          in: header
+          required: false
+          description: Ngày giờ để kiểm tra tài nguyên có thay đổi không
+          schema:
+            type: string
+            example: "Wed, 09 Oct 2025 12:00:00 GMT"
+      responses:
+        '200':
+          description: Thông tin sách
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Entity tag
+              example: "33a64df551425fcc55e4d42a148795d9f25f89d4"
+            Last-Modified:
+              schema:
+                type: string
+              description: Thời gian sửa đổi cuối
+              example: "Wed, 09 Oct 2025 12:00:00 GMT"
+            Cache-Control:
+              schema:
+                type: string
+              example: "private, max-age=30, must-revalidate"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Books
+      summary: Cập nhật thông tin sách
+      description: Cập nhật sách (chỉ admin). Cache no-store
+      operationId: updateBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          description: ID của sách
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+            examples:
+              updateTitle:
+                value:
+                  title: "Clean Code - Updated"
+              updateAll:
+                value:
+                  title: "Clean Code - 2nd Edition"
+                  author: "Robert C. Martin"
+                  is_available: false
+      responses:
+        '200':
+          description: Cập nhật thành công
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "no-store"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Book updated"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Books
+      summary: Xóa sách
+      description: Xóa sách khỏi thư viện (chỉ admin). Cache no-store
+      operationId: deleteBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          description: ID của sách
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Xóa thành công
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "no-store"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Book deleted"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /books/search:
+    get:
+      tags:
+        - Books
+      summary: Tìm kiếm sách theo tác giả
+      description: Tìm kiếm sách với cache theo query parameters. Mỗi query khác nhau có cache riêng (60s)
+      operationId: searchBooks
+      security: []
+      parameters:
+        - name: author
+          in: query
+          required: false
+          description: Tên tác giả cần tìm
+          schema:
+            type: string
+            example: "Martin"
+      responses:
+        '200':
+          description: Kết quả tìm kiếm
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "public, max-age=60"
+            Vary:
+              schema:
+                type: string
+              example: "Accept-Language"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchBooksResponse'
+              examples:
+                cacheHit:
+                  value:
+                    books:
+                      - id: 1
+                        title: "Clean Code"
+                        author: "Robert C. Martin"
+                        is_available: true
+                    from_cache: true
+                cacheMiss:
+                  value:
+                    books:
+                      - id: 1
+                        title: "Clean Code"
+                        author: "Robert C. Martin"
+                        is_available: true
+                    from_cache: false
+
+  /loans/:
+    get:
+      tags:
+        - Loans
+      summary: Lấy tất cả giao dịch mượn sách
+      description: Lấy danh sách tất cả giao dịch (chỉ admin). Cache no-cache - phải revalidate mỗi lần
+      operationId: getLoans
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Danh sách giao dịch
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "private, no-cache"
+            Vary:
+              schema:
+                type: string
+              example: "Authorization"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Loan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /loans/{loan_id}:
+    get:
+      tags:
+        - Loans
+      summary: Lấy thông tin một giao dịch
+      description: Xem chi tiết giao dịch mượn sách
+      operationId: getLoan
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: loan_id
+          in: path
+          required: true
+          description: ID của giao dịch
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Thông tin giao dịch
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "private, max-age=30"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Loans
+      summary: Xóa giao dịch
+      description: Xóa giao dịch mượn sách (chỉ admin). Nếu sách chưa trả sẽ tự động set is_available = true
+      operationId: deleteLoan
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: loan_id
+          in: path
+          required: true
+          description: ID của giao dịch
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Xóa thành công
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "no-store"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Đã xóa giao dịch"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /loans/checkout:
+    post:
+      tags:
+        - Loans
+      summary: Mượn sách
+      description: Tạo giao dịch mượn sách mới. Sách phải đang sẵn có (is_available = true)
+      operationId: checkoutBook
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutInput'
+            example:
+              book_id: 1
+      responses:
+        '201':
+          description: Mượn sách thành công
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "no-store"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  loan_id:
+                    type: integer
+                  checkout_date:
+                    type: string
+                    format: date
+              example:
+                message: "Mượn sách thành công"
+                loan_id: 1
+                checkout_date: "2025-10-09"
+        '400':
+          description: Sách không sẵn có hoặc thiếu thông tin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingBookId:
+                  value:
+                    error: "Cần có book_id"
+                bookNotAvailable:
+                  value:
+                    error: "Sách này đang được mượn"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /loans/return/{loan_id}:
+    put:
+      tags:
+        - Loans
+      summary: Trả sách
+      description: Đánh dấu sách đã được trả (chỉ admin). Set return_date và is_available = true
+      operationId: returnBook
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: loan_id
+          in: path
+          required: true
+          description: ID của giao dịch
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Trả sách thành công
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "no-store"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  return_date:
+                    type: string
+                    format: date
+              example:
+                message: "Trả sách thành công"
+                return_date: "2025-10-16"
+        '400':
+          description: Sách đã được trả rồi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Sách này đã được trả rồi"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /loans/active:
+    get:
+      tags:
+        - Loans
+      summary: Lấy danh sách sách đang được mượn
+      description: Lấy các giao dịch chưa trả (return_date = null) - chỉ admin. Cache stale-while-revalidate=30 - trả bản cũ trong khi revalidate
+      operationId: getActiveLoans
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Danh sách sách đang mượn
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "private, max-age=45, stale-while-revalidate=30"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    loan_id:
+                      type: integer
+                    book_title:
+                      type: string
+                    user_name:
+                      type: string
+                    checkout_date:
+                      type: string
+                      format: date
+              example:
+                - loan_id: 1
+                  book_title: "Clean Code"
+                  user_name: "Nguyễn Văn A"
+                  checkout_date: "2025-10-09"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /loans/my-loans:
+    get:
+      tags:
+        - Loans
+      summary: Xem lịch sử mượn sách của bản thân
+      description: User xem các giao dịch mượn sách của mình. Cache private - chỉ cache ở browser không CDN
+      operationId: getMyLoans
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lịch sử mượn sách
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "private, max-age=60"
+            Vary:
+              schema:
+                type: string
+              example: "Authorization"
+            X-Cache-Status:
+              schema:
+                type: string
+                enum: [HIT, MISS]
+              description: Trạng thái cache
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_name:
+                    type: string
+                  loans:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        loan_id:
+                          type: integer
+                        book_title:
+                          type: string
+                        checkout_date:
+                          type: string
+                          format: date
+                        return_date:
+                          type: string
+              example:
+                user_name: "Nguyễn Văn A"
+                loans:
+                  - loan_id: 1
+                    book_title: "Clean Code"
+                    checkout_date: "2025-10-09"
+                    return_date: "Chưa trả"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /loans/user/{user_id}:
+    get:
+      tags:
+        - Loans
+      summary: Xem lịch sử mượn sách của một user
+      description: Lấy danh sách giao dịch mượn sách của một user cụ thể (chỉ admin)
+      operationId: getUserLoans
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID của user
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Lịch sử mượn sách của user
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: "private, max-age=30"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_name:
+                    type: string
+                  loans:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        loan_id:
+                          type: integer
+                        book_title:
+                          type: string
+                        checkout_date:
+                          type: string
+                          format: date
+                        return_date:
+                          type: string
+              example:
+                user_name: "Nguyễn Văn A"
+                loans:
+                  - loan_id: 1
+                    book_title: "Clean Code"
+                    checkout_date: "2025-10-09"
+                    return_date: "2025-10-16"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /users/:
+    get:
+      tags:
+        - Users
+      summary: Lấy danh sách tất cả user
+      description: Xem danh sách tất cả user trong hệ thống (chỉ admin)
+      operationId: getUsers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Danh sách user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+              example:
+                - id: 1
+                  name: "Admin"
+                  email: "admin@example.com"
+                  role: "admin"
+                - id: 2
+                  name: "Nguyễn Văn A"
+                  email: "user@example.com"
+                  role: "user"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /users/{user_id}:
+    get:
+      tags:
+        - Users
+      summary: Lấy thông tin một user
+      description: Xem thông tin chi tiết của một user (tất cả user đã đăng nhập đều có thể xem)
+      operationId: getUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID của user
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Thông tin user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Users
+      summary: Cập nhật thông tin user
+      description: Admin cập nhật thông tin bất kỳ user nào (bao gồm role). Có thể cập nhật name, email, và role.
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID của user
+          schema:
+            type: integer
+            example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Nguyễn Văn B"
+                email:
+                  type: string
+                  format: email
+                  example: "newuser@example.com"
+                role:
+                  type: string
+                  enum: [user, admin]
+                  example: "admin"
+            examples:
+              updateName:
+                value:
+                  name: "Nguyễn Văn B"
+              updateRole:
+                value:
+                  role: "admin"
+              updateAll:
+                value:
+                  name: "Nguyễn Văn B"
+                  email: "newuser@example.com"
+                  role: "admin"
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "User updated"
+        '400':
+          description: Email đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Email đã tồn tại"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Users
+      summary: Xóa user
+      description: Xóa user khỏi hệ thống (chỉ admin)
+      operationId: deleteUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: ID của user
+          schema:
+            type: integer
+            example: 2
+      responses:
+        '200':
+          description: Xóa thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "User deleted"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Lấy thông tin user hiện tại
+      description: Xem thông tin của user đang đăng nhập
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Thông tin user hiện tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 1
+                name: "Nguyễn Văn A"
+                email: "user@example.com"
+                role: "user"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      tags:
+        - Users
+      summary: Cập nhật thông tin bản thân
+      description: User cập nhật thông tin của chính mình. Chỉ có thể cập nhật name và email (không thể đổi role).
+      operationId: updateCurrentUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Nguyễn Văn A Updated"
+                email:
+                  type: string
+                  format: email
+                  example: "newemail@example.com"
+            examples:
+              updateName:
+                value:
+                  name: "Nguyễn Văn A Updated"
+              updateEmail:
+                value:
+                  email: "newemail@example.com"
+              updateBoth:
+                value:
+                  name: "Nguyễn Văn A Updated"
+                  email: "newemail@example.com"
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "User updated"
+        '400':
+          description: Email đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Email đã tồn tại"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'

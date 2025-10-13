@@ -1,0 +1,271 @@
+books:
+  get:
+    tags:
+      - Books
+    summary: Lấy danh sách tất cả sách
+    description: |
+      Lấy danh sách sách với server-side caching (60s).
+      **Cache Headers:**
+      - Cache-Control: public, max-age=60
+      - Vary: Accept-Language
+    operationId: getBooks
+    security: []
+    responses:
+      '200':
+        description: Danh sách sách
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            description: Cache directives
+            example: "public, max-age=60"
+          Vary:
+            schema:
+              type: string
+            description: Vary header
+            example: "Accept-Language"
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yaml#/schemas/Book'
+            example:
+              - id: 1
+                title: "Clean Code"
+                author: "Robert C. Martin"
+                is_available: true
+              - id: 2
+                title: "Design Patterns"
+                author: "Gang of Four"
+                is_available: false
+
+  post:
+    tags:
+      - Books
+    summary: Thêm sách mới
+    description: |
+      Thêm sách mới vào thư viện (chỉ admin).
+      **Cache:** no-store - không được cache
+    operationId: addBook
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/schemas/BookInput'
+          examples:
+            newBook:
+              value:
+                title: "Clean Architecture"
+                author: "Robert C. Martin"
+                is_available: true
+    responses:
+      '201':
+        description: Thêm sách thành công
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "no-store"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                id:
+                  type: integer
+            example:
+              message: "Book added"
+              id: 3
+      '400':
+        $ref: '../components/responses.yaml#/responses/BadRequestError'
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+
+books-by-id:
+  get:
+    tags:
+      - Books
+    summary: Lấy thông tin chi tiết một cuốn sách
+    description: |
+      Lấy thông tin sách theo ID với ETag và Last-Modified validation.
+      **Conditional Requests:**
+      - Gửi If-None-Match với ETag để nhận 304 nếu không thay đổi
+      - Gửi If-Modified-Since để kiểm tra thời gian
+    operationId: getBook
+    security: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/BookId'
+      - $ref: '../components/parameters.yaml#/parameters/IfNoneMatch'
+      - $ref: '../components/parameters.yaml#/parameters/IfModifiedSince'
+    responses:
+      '200':
+        description: Thông tin sách
+        headers:
+          ETag:
+            schema:
+              type: string
+            description: Entity tag
+            example: "33a64df551425fcc55e4d42a148795d9f25f89d4"
+          Last-Modified:
+            schema:
+              type: string
+            description: Thời gian sửa đổi cuối
+            example: "Wed, 09 Oct 2025 12:00:00 GMT"
+          Cache-Control:
+            schema:
+              type: string
+            example: "private, max-age=30, must-revalidate"
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Book'
+      '304':
+        $ref: '../components/responses.yaml#/responses/NotModified'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+  put:
+    tags:
+      - Books
+    summary: Cập nhật thông tin sách
+    description: |
+      Cập nhật sách (chỉ admin).
+      **Cache:** no-store
+    operationId: updateBook
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/BookId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/schemas/BookInput'
+          examples:
+            updateTitle:
+              value:
+                title: "Clean Code - Updated"
+            updateAll:
+              value:
+                title: "Clean Code - 2nd Edition"
+                author: "Robert C. Martin"
+                is_available: false
+    responses:
+      '200':
+        description: Cập nhật thành công
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "no-store"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+            example:
+              message: "Book updated"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+  delete:
+    tags:
+      - Books
+    summary: Xóa sách
+    description: |
+      Xóa sách khỏi thư viện (chỉ admin).
+      **Cache:** no-store
+    operationId: deleteBook
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/BookId'
+    responses:
+      '200':
+        description: Xóa thành công
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "no-store"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+            example:
+              message: "Book deleted"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+books-search:
+  get:
+    tags:
+      - Books
+    summary: Tìm kiếm sách theo tác giả
+    description: |
+      Tìm kiếm sách với cache theo query parameters.
+      **Cache:** Mỗi query khác nhau có cache riêng (60s)
+    operationId: searchBooks
+    security: []
+    parameters:
+      - name: author
+        in: query
+        description: Tên tác giả cần tìm
+        schema:
+          type: string
+        example: "Martin"
+    responses:
+      '200':
+        description: Kết quả tìm kiếm
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "public, max-age=60"
+          Vary:
+            schema:
+              type: string
+            example: "Accept-Language"
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/SearchBooksResponse'
+            examples:
+              cacheHit:
+                value:
+                  books:
+                    - id: 1
+                      title: "Clean Code"
+                      author: "Robert C. Martin"
+                      is_available: true
+                  from_cache: true
+              cacheMiss:
+                value:
+                  books:
+                    - id: 1
+                      title: "Clean Code"
+                      author: "Robert C. Martin"
+                      is_available: true
+                  from_cache: false

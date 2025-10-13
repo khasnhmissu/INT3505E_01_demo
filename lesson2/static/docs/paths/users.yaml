@@ -1,0 +1,234 @@
+users:
+  get:
+    tags:
+      - Users
+    summary: Lấy danh sách tất cả user
+    description: Xem danh sách tất cả user trong hệ thống (chỉ admin)
+    operationId: getUsers
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: Danh sách user
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yaml#/schemas/User'
+            example:
+              - id: 1
+                name: "Admin"
+                email: "admin@example.com"
+                role: "admin"
+              - id: 2
+                name: "Nguyễn Văn A"
+                email: "user@example.com"
+                role: "user"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+
+users-by-id:
+  get:
+    tags:
+      - Users
+    summary: Lấy thông tin một user
+    description: Xem thông tin chi tiết của một user (tất cả user đã đăng nhập đều có thể xem)
+    operationId: getUser
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/UserId'
+    responses:
+      '200':
+        description: Thông tin user
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/User'
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+  put:
+    tags:
+      - Users
+    summary: Cập nhật thông tin user
+    description: |
+      Admin cập nhật thông tin bất kỳ user nào (bao gồm role).
+      Có thể cập nhật name, email, và role.
+    operationId: updateUser
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/UserId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Nguyễn Văn B"
+              email:
+                type: string
+                format: email
+                example: "newuser@example.com"
+              role:
+                type: string
+                enum: [user, admin]
+                example: "admin"
+          examples:
+            updateName:
+              value:
+                name: "Nguyễn Văn B"
+            updateRole:
+              value:
+                role: "admin"
+            updateAll:
+              value:
+                name: "Nguyễn Văn B"
+                email: "newuser@example.com"
+                role: "admin"
+    responses:
+      '200':
+        description: Cập nhật thành công
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+            example:
+              message: "User updated"
+      '400':
+        description: Email đã tồn tại
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            example:
+              error: "Email đã tồn tại"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+  delete:
+    tags:
+      - Users
+    summary: Xóa user
+    description: Xóa user khỏi hệ thống (chỉ admin)
+    operationId: deleteUser
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/UserId'
+    responses:
+      '200':
+        description: Xóa thành công
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+            example:
+              message: "User deleted"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+users-me:
+  get:
+    tags:
+      - Users
+    summary: Lấy thông tin user hiện tại
+    description: Xem thông tin của user đang đăng nhập
+    operationId: getCurrentUser
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: Thông tin user hiện tại
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/User'
+            example:
+              id: 1
+              name: "Nguyễn Văn A"
+              email: "user@example.com"
+              role: "user"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+
+  put:
+    tags:
+      - Users
+    summary: Cập nhật thông tin bản thân
+    description: |
+      User cập nhật thông tin của chính mình.
+      Chỉ có thể cập nhật name và email (không thể đổi role).
+    operationId: updateCurrentUser
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Nguyễn Văn A Updated"
+              email:
+                type: string
+                format: email
+                example: "newemail@example.com"
+          examples:
+            updateName:
+              value:
+                name: "Nguyễn Văn A Updated"
+            updateEmail:
+              value:
+                email: "newemail@example.com"
+            updateBoth:
+              value:
+                name: "Nguyễn Văn A Updated"
+                email: "newemail@example.com"
+    responses:
+      '200':
+        description: Cập nhật thành công
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+            example:
+              message: "User updated"
+      '400':
+        description: Email đã tồn tại
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            example:
+              error: "Email đã tồn tại"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'

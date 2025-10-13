@@ -1,0 +1,55 @@
+responses:
+  UnauthorizedError:
+    description: Token không hợp lệ hoặc hết hạn
+    content:
+      application/json:
+        schema:
+          $ref: './schemas.yaml#/schemas/Error'
+        examples:
+          noToken:
+            value:
+              error: "Cần đăng nhập"
+          invalidToken:
+            value:
+              error: "Token không hợp lệ"
+          expiredToken:
+            value:
+              error: "Token đã hết hạn"
+
+  ForbiddenError:
+    description: Không có quyền truy cập
+    content:
+      application/json:
+        schema:
+          $ref: './schemas.yaml#/schemas/Error'
+        example:
+          error: "Bạn không có quyền thực hiện hành động này"
+
+  NotFoundError:
+    description: Không tìm thấy tài nguyên
+    content:
+      application/json:
+        schema:
+          $ref: './schemas.yaml#/schemas/Error'
+        example:
+          error: "404 Not Found"
+
+  BadRequestError:
+    description: Yêu cầu không hợp lệ
+    content:
+      application/json:
+        schema:
+          $ref: './schemas.yaml#/schemas/Error'
+
+  NotModified:
+    description: Tài nguyên không thay đổi (304 Not Modified)
+    headers:
+      ETag:
+        schema:
+          type: string
+        description: Entity tag của tài nguyên
+      Cache-Control:
+        schema:
+          type: string
+        description: Cache directives
+        example: "private, max-age=30, must-revalidate"

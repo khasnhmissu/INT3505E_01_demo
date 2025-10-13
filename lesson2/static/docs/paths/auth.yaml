@@ -1,0 +1,140 @@
+register:
+  post:
+    tags:
+      - Authentication
+    summary: Đăng ký tài khoản mới
+    description: Tạo tài khoản người dùng mới (role mặc định là 'user')
+    operationId: register
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/schemas/RegisterInput'
+          examples:
+            newUser:
+              value:
+                name: "Nguyễn Văn A"
+                email: "user@example.com"
+                password: "password123"
+    responses:
+      '201':
+        description: Đăng ký thành công
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                user_id:
+                  type: integer
+            example:
+              message: "Đăng ký thành công"
+              user_id: 1
+      '400':
+        description: Thiếu thông tin hoặc email đã tồn tại
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            examples:
+              missingFields:
+                value:
+                  error: "Email và password là bắt buộc"
+              emailExists:
+                value:
+                  error: "Email đã tồn tại"
+
+login:
+  post:
+    tags:
+      - Authentication
+    summary: Đăng nhập
+    description: Đăng nhập và nhận JWT token
+    operationId: login
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/schemas/LoginInput'
+          examples:
+            validLogin:
+              value:
+                email: "user@example.com"
+                password: "password123"
+    responses:
+      '200':
+        description: Đăng nhập thành công
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/LoginResponse'
+      '400':
+        description: Thiếu thông tin đăng nhập
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            example:
+              error: "Email và password là bắt buộc"
+      '401':
+        description: Email hoặc mật khẩu không đúng
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            example:
+              error: "Email hoặc password không đúng"
+
+create-admin:
+  post:
+    tags:
+      - Authentication
+    summary: Tạo tài khoản admin
+    description: Tạo tài khoản admin đầu tiên (chỉ được tạo 1 lần)
+    operationId: createAdmin
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/schemas/RegisterInput'
+          examples:
+            adminAccount:
+              value:
+                name: "Admin"
+                email: "admin@example.com"
+                password: "admin123"
+    responses:
+      '201':
+        description: Tạo admin thành công
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                user_id:
+                  type: integer
+            example:
+              message: "Tạo admin thành công"
+              user_id: 1
+      '400':
+        description: Đã có admin hoặc thiếu thông tin
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            examples:
+              adminExists:
+                value:
+                  error: "Đã có admin trong hệ thống"
+              missingFields:
+                value:
+                  error: "Email và password là bắt buộc"

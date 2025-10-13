@@ -4,3 +4,5 @@ psycopg2-binary
 PyJWT
 Flask-Caching
 requests
+flasgger
+flask-cors

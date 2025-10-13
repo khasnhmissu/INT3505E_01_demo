@@ -1,0 +1,383 @@
+loans:
+  get:
+    tags:
+      - Loans
+    summary: Lấy tất cả giao dịch mượn sách
+    description: |
+      Lấy danh sách tất cả giao dịch (chỉ admin).
+      **Cache:** no-cache - phải revalidate mỗi lần
+    operationId: getLoans
+    security:
+      - BearerAuth: []
+    responses:
+      '201':
+        description: Mượn sách thành công
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "no-store"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                loan_id:
+                  type: integer
+                checkout_date:
+                  type: string
+                  format: date
+            example:
+              message: "Mượn sách thành công"
+              loan_id: 1
+              checkout_date: "2025-10-09"
+      '400':
+        description: Sách không sẵn có hoặc thiếu thông tin
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            examples:
+              missingBookId:
+                value:
+                  error: "Cần có book_id"
+              bookNotAvailable:
+                value:
+                  error: "Sách này đang được mượn"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+loans-return:
+  put:
+    tags:
+      - Loans
+    summary: Trả sách
+    description: |
+      Đánh dấu sách đã được trả (chỉ admin).
+      Set return_date và is_available = true
+    operationId: returnBook
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/LoanId'
+    responses:
+      '200':
+        description: Trả sách thành công
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "no-store"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                return_date:
+                  type: string
+                  format: date
+            example:
+              message: "Trả sách thành công"
+              return_date: "2025-10-16"
+      '400':
+        description: Sách đã được trả rồi
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Error'
+            example:
+              error: "Sách này đã được trả rồi"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+loans-active:
+  get:
+    tags:
+      - Loans
+    summary: Lấy danh sách sách đang được mượn
+    description: |
+      Lấy các giao dịch chưa trả (return_date = null) - chỉ admin.
+      **Cache:** stale-while-revalidate=30 - trả bản cũ trong khi revalidate
+    operationId: getActiveLoans
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: Danh sách sách đang mượn
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "private, max-age=45, stale-while-revalidate=30"
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  loan_id:
+                    type: integer
+                  book_title:
+                    type: string
+                  user_name:
+                    type: string
+                  checkout_date:
+                    type: string
+                    format: date
+            example:
+              - loan_id: 1
+                book_title: "Clean Code"
+                user_name: "Nguyễn Văn A"
+                checkout_date: "2025-10-09"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+
+loans-my-loans:
+  get:
+    tags:
+      - Loans
+    summary: Xem lịch sử mượn sách của bản thân
+    description: |
+      User xem các giao dịch mượn sách của mình.
+      **Cache:** private - chỉ cache ở browser, không CDN
+    operationId: getMyLoans
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: Lịch sử mượn sách
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "private, max-age=60"
+          Vary:
+            schema:
+              type: string
+            example: "Authorization"
+          X-Cache-Status:
+            schema:
+              type: string
+              enum: [HIT, MISS]
+            description: Trạng thái cache
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_name:
+                  type: string
+                loans:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      loan_id:
+                        type: integer
+                      book_title:
+                        type: string
+                      checkout_date:
+                        type: string
+                        format: date
+                      return_date:
+                        type: string
+            example:
+              user_name: "Nguyễn Văn A"
+              loans:
+                - loan_id: 1
+                  book_title: "Clean Code"
+                  checkout_date: "2025-10-09"
+                  return_date: "Chưa trả"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+
+loans-user:
+  get:
+    tags:
+      - Loans
+    summary: Xem lịch sử mượn sách của một user
+    description: Lấy danh sách giao dịch mượn sách của một user cụ thể (chỉ admin)
+    operationId: getUserLoans
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/UserId'
+    responses:
+      '200':
+        description: Lịch sử mượn sách của user
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "private, max-age=30"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_name:
+                  type: string
+                loans:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      loan_id:
+                        type: integer
+                      book_title:
+                        type: string
+                      checkout_date:
+                        type: string
+                        format: date
+                      return_date:
+                        type: string
+            example:
+              user_name: "Nguyễn Văn A"
+              loans:
+                - loan_id: 1
+                  book_title: "Clean Code"
+                  checkout_date: "2025-10-09"
+                  return_date: "2025-10-16"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'200':
+        description: Danh sách giao dịch
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "private, no-cache"
+          Vary:
+            schema:
+              type: string
+            example: "Authorization"
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yaml#/schemas/Loan'
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+
+loans-by-id:
+  get:
+    tags:
+      - Loans
+    summary: Lấy thông tin một giao dịch
+    description: Xem chi tiết giao dịch mượn sách
+    operationId: getLoan
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/LoanId'
+    responses:
+      '200':
+        description: Thông tin giao dịch
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "private, max-age=30"
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Loan'
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+  delete:
+    tags:
+      - Loans
+    summary: Xóa giao dịch
+    description: |
+      Xóa giao dịch mượn sách (chỉ admin).
+      Nếu sách chưa trả, sẽ tự động set is_available = true
+    operationId: deleteLoan
+    security:
+      - BearerAuth: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/parameters/LoanId'
+    responses:
+      '200':
+        description: Xóa thành công
+        headers:
+          Cache-Control:
+            schema:
+              type: string
+            example: "no-store"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+            example:
+              message: "Đã xóa giao dịch"
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
+
+loans-checkout:
+  post:
+    tags:
+      - Loans
+    summary: Mượn sách
+    description: |
+      Tạo giao dịch mượn sách mới.
+      Sách phải đang sẵn có (is_available = true)
+    operationId: checkoutBook
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/schemas/CheckoutInput'
+          example:
+            book_id: 1
+    responses:
+      '201':
+        description: Tạo giao dịch thành công
+        headers:
+          Location:
+            schema:
+              type: string
+            example: "/loans/1"
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/schemas/Loan'
+      '400':
+        $ref: '../components/responses.yaml#/responses/BadRequestError'
+      '401':
+        $ref: '../components/responses.yaml#/responses/UnauthorizedError'
+      '403':
+        $ref: '../components/responses.yaml#/responses/ForbiddenError'
+      '404':
+        $ref: '../components/responses.yaml#/responses/NotFoundError'
