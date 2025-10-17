@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: movie_booking_postgres  # Thay đổi tên container
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: movieuser              # Thay đổi username
+      POSTGRES_PASSWORD: moviepass123       # Thay đổi password
+      POSTGRES_DB: movie_booking_db         # Thay đổi tên database
+    ports:
+      - "5433:5432"                          # Thay đổi port bên ngoài (5433 thay vì 5432)
+    volumes:
+      - movie_booking_data:/var/lib/postgresql/data  # Thay đổi tên volume
+
+volumes:
+  movie_booking_data:                        # Thay đổi tên volume
