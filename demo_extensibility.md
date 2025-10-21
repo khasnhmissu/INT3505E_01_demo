@@ -14,20 +14,20 @@ DELETE /v1/theaters/1
 
 ###  Sử dụng danh từ số nhiều
 
-# Lấy danh sách users
+#### Lấy danh sách users
 GET /v1/users
-# Lấy user id=5 từ collection users
+#### Lấy user id=5 từ collection users
 GET /v1/users/5
-# Lấy danh sách movies
+#### Lấy danh sách movies
 GET /v1/movies  
-# Lấy movie id=123 từ collection movies
+#### Lấy movie id=123 từ collection movies
 GET /v1/movies/1
 
 ### URL lồng nhau cho quan hệ cha-con
 
-# Lấy bookings của user 5
+#### Lấy bookings của user 5
 GET /v1/users/5/bookings
-# Lấy bookings của movie 3
+#### Lấy bookings của movie 3
 GET /v1/movies/3/bookings
 
 ![1](lesson4/static/url_long_nhau.jpg)
@@ -35,9 +35,9 @@ GET /v1/movies/3/bookings
 
 ### API Versioning
 
-# Version 1 - không có pagination
+#### Version 1 - không có pagination
 GET /v1/movies
-# Version 2 - có pagination
+#### Version 2 - có pagination
 GET /v2/movies
 
 ![3](lesson4/static/v1.jpg)
@@ -52,11 +52,11 @@ GET /v2/movies
 
 ### Query Parameters cho filtering, search
 
-# Tất cả phim
+#### Tất cả phim
 GET /v1/movies
-# Tìm kiếm theo tên
+#### Tìm kiếm theo tên
 GET /v1/movies?search=inception 
-# Lọc theo thể loại
+#### Lọc theo thể loại
 GET /v1/movies?genre=sci-fi
 
 ![5](lesson4/static/filter.jpg)
