@@ -20,6 +20,8 @@ class User(db.Model):
     password = db.Column(db.String, nullable=False)
     role = db.Column(db.String, default="user")
     
+    token_version = db.Column(db.Integer, default=0, nullable=False)
+    
     loans = db.relationship("Loan", back_populates="user")
 
 class Loan(db.Model):

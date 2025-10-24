@@ -34,6 +34,11 @@ def create_app():
             'swagger.yaml',
             mimetype='application/yaml'
         )
+        
+    @app.route("/cache")
+    def debug_cache():
+        print("CACHE hiện tại:", cache.cache._cache)
+        return {"cache": list(cache.cache._cache.keys())}
 
     # CORS và Config
     CORS(app)

@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 from app.models import User
 from app.extension import db
 from app.routes.auth import token_required, admin_required
+import jwt  # MỚI: Để decode token trong demo
+from config import Config
 
 users_bp = Blueprint("users", __name__)
 
