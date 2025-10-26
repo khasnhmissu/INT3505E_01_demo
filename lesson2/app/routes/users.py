@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
-from app.models import User
+from app.models import User, Loan
 from app.extension import db
 from app.routes.auth import token_required, admin_required
+from sqlalchemy.orm import joinedload
 import jwt  # MỚI: Để decode token trong demo
 from config import Config
 
@@ -77,3 +78,69 @@ def delete_user(current_user, user_id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({"message": "User deleted"})
+
+@users_bp.route("/all-loans-v1", methods=["GET"])
+@admin_required
+def get_all_loans_v1(current_user):
+    users = User.query.all()
+    output = []
+    for user in users:
+        user_loans = []
+        for loan in user.loans:
+            user_loans.append({
+                "loan_id": loan.loan_id,
+                "book_title": loan.book.title,
+                "checkout_date": str(loan.checkout_date),
+                "return_date": str(loan.return_date) if loan.return_date else None
+            })
+        output.append({
+            "user_id": user.id,
+            "user_name": user.name,
+            "loans": user_loans
+        })
+    return jsonify(output)
+
+@users_bp.route("/all-loans-v2", methods=["GET"])
+@admin_required
+def get_all_loans_v2(current_user):
+    users = User.query.options(
+        joinedload(User.loans).joinedload(Loan.book)
+    ).all()
+    output = []
+    for user in users:
+        user_loans = []
+        for loan in user.loans:
+            user_loans.append({
+                "loan_id": loan.loan_id,
+                "book_title": loan.book.title,
+                "checkout_date": str(loan.checkout_date),
+                "return_date": str(loan.return_date) if loan.return_date else None
+            })
+        output.append({
+            "user_id": user.id,
+            "user_name": user.name,
+            "loans": user_loans
+        })
+    return jsonify(output)
+
+@users_bp.route("/<int:user_id>/loans", methods=["GET"])
+@token_required
+def get_user_loans(current_user, user_id):
+    user = User.query.options(
+        joinedload(User.loans).joinedload(Loan.book)
+    ).get_or_404(user_id)
+    
+    user_loans = []
+    for loan in user.loans:
+        user_loans.append({
+            "loan_id": loan.loan_id,
+            "book_title": loan.book.title,
+            "checkout_date": str(loan.checkout_date),
+            "return_date": str(loan.return_date) if loan.return_date else None
+        })
+    
+    return jsonify({
+        "user_id": user.id,
+        "user_name": user.name,
+        "loans": user_loans
+    })
