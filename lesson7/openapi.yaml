@@ -1,0 +1,265 @@
+openapi: 3.0.0
+info:
+  title: Product Management API
+  description: API để quản lý sản phẩm (CRUD operations)
+  version: 1.0.0
+  contact:
+    name: Backend Team
+    email: support@example.com
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+tags:
+  - name: Products
+    description: Quản lý sản phẩm
+
+paths:
+  # ========================================
+  # ENDPOINT: GET /products (Lấy tất cả)
+  # ========================================
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Lấy danh sách tất cả products
+      operationId: getAllProducts
+      responses:
+        '200':
+          description: Lấy danh sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  total:
+                    type: integer
+                    example: 3
+
+    # ========================================
+    # ENDPOINT: POST /products (Tạo mới)
+    # ========================================
+    post:
+      tags:
+        - Products
+      summary: Tạo product mới
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Tạo product thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Tạo product thành công"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ========================================
+  # ENDPOINT: GET /products/{productId}
+  # ========================================
+  /products/{productId}:
+    get:
+      tags:
+        - Products
+      summary: Lấy thông tin 1 product theo ID
+      operationId: getProductById
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: ID của product cần lấy
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Lấy thông tin thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          description: Không tìm thấy product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    # ========================================
+    # ENDPOINT: PUT /products/{productId}
+    # ========================================
+    put:
+      tags:
+        - Products
+      summary: Cập nhật thông tin product
+      operationId: updateProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: ID của product cần cập nhật
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Cập nhật product thành công"
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          description: Không tìm thấy product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    # ========================================
+    # ENDPOINT: DELETE /products/{productId}
+    # ========================================
+    delete:
+      tags:
+        - Products
+      summary: Xóa product
+      operationId: deleteProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: ID của product cần xóa
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Xóa thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Đã xóa product ID 1"
+        '404':
+          description: Không tìm thấy product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# ========================================
+# SCHEMAS (Models)
+# ========================================
+components:
+  schemas:
+    # Model: Product (đầy đủ với ID)
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - price
+      properties:
+        id:
+          type: integer
+          description: ID tự động của product
+          example: 1
+        name:
+          type: string
+          description: Tên sản phẩm
+          example: "Laptop Dell XPS 13"
+        price:
+          type: number
+          format: float
+          description: Giá sản phẩm (USD)
+          example: 1200.50
+        stock:
+          type: integer
+          description: Số lượng tồn kho
+          example: 15
+          default: 0
+
+    # Model: ProductInput (không có ID - dùng khi tạo/cập nhật)
+    ProductInput:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+          description: Tên sản phẩm
+          example: "Laptop Dell XPS 13"
+        price:
+          type: number
+          format: float
+          description: Giá sản phẩm (USD)
+          example: 1200.50
+        stock:
+          type: integer
+          description: Số lượng tồn kho
+          example: 15
+
+    # Model: Error (thông báo lỗi)
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Product với ID 99 không tồn tại"
