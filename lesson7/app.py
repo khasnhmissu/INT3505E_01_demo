@@ -1,64 +1,112 @@
-# app.py
+# app.py - Phiên bản với MongoDB
 from flask import Flask, request, jsonify
+from flask_pymongo import PyMongo
+from bson.objectid import ObjectId
+from bson.errors import InvalidId
 
 app = Flask(__name__)
 
-products = [
-    {"id": 1, "name": "Laptop Dell XPS 13", "price": 1200, "stock": 15},
-    {"id": 2, "name": "Chuột Logitech MX Master", "price": 99, "stock": 50},
-    {"id": 3, "name": "Bàn phím cơ Keychron K2", "price": 89, "stock": 30}
-]
+# Format: mongodb://[username:password@]host:port/database_name
+app.config["MONGO_URI"] = "mongodb://localhost:27017/store_demo"
 
-next_id = 4
+# Khởi tạo PyMongo
+mongo = PyMongo(app)
+
+# Truy cập collection 'products' trong database 'store_demo'
+# Collection sẽ tự động được tạo khi insert document đầu tiên
+products_collection = mongo.db.products
 
 
-def find_product_by_id(product_id):
-    """Tìm product trong danh sách theo ID"""
-    for product in products:
-        if product['id'] == product_id:
-            return product
-    return None
+def serialize_product(product):
+    """
+    Chuyển đổi _id từ ObjectId sang string để có thể JSON serialize
+    MongoDB lưu _id dưới dạng ObjectId, nhưng JSON không hiểu kiểu này
+    """
+    if product and '_id' in product:
+        product['_id'] = str(product['_id'])
+    return product
+
+
+def serialize_products(products):
+    """Chuyển đổi danh sách products"""
+    return [serialize_product(product) for product in products]
 
 
 @app.route('/products', methods=['GET'])
 def get_all_products():
     """
-    Lấy danh sách tất cả products
+    Lấy danh sách tất cả products từ MongoDB
     Method: GET
     URL: http://localhost:5000/products
     """
-    return jsonify({
-        "success": True,
-        "data": products,
-        "total": len(products)
-    }), 200
+    try:
+        # Lấy tất cả documents từ collection 'products'
+        # find() trả về cursor (giống iterator)
+        products = list(products_collection.find())
+        
+        # Chuyển đổi ObjectId sang string
+        products = serialize_products(products)
+        
+        return jsonify({
+            "success": True,
+            "data": products,
+            "total": len(products)
+        }), 200
+    
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Lỗi khi lấy danh sách products: {str(e)}"
+        }), 500
 
 
-@app.route('/products/<int:product_id>', methods=['GET'])
+@app.route('/products/<product_id>', methods=['GET'])
 def get_product(product_id):
     """
     Lấy thông tin 1 product theo ID
     Method: GET
-    URL: http://localhost:5000/products/1
-    """
-    product = find_product_by_id(product_id)
+    URL: http://localhost:5000/products/507f1f77bcf86cd799439011
     
-    if product is None:
+    Lưu ý: product_id phải là ObjectId hợp lệ (24 ký tự hex)
+    """
+    try:
+        # Chuyển đổi string ID sang ObjectId
+        obj_id = ObjectId(product_id)
+        
+        # Tìm document theo _id
+        product = products_collection.find_one({"_id": obj_id})
+        
+        if product is None:
+            return jsonify({
+                "success": False,
+                "message": f"Product với ID {product_id} không tồn tại"
+            }), 404
+        
+        # Chuyển đổi ObjectId sang string
+        product = serialize_product(product)
+        
+        return jsonify({
+            "success": True,
+            "data": product
+        }), 200
+    
+    except InvalidId:
         return jsonify({
             "success": False,
-            "message": f"Product với ID {product_id} không tồn tại"
-        }), 404
+            "message": f"ID '{product_id}' không hợp lệ. ID phải là chuỗi 24 ký tự hex."
+        }), 400
     
-    return jsonify({
-        "success": True,
-        "data": product
-    }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Lỗi khi lấy product: {str(e)}"
+        }), 500
 
 
 @app.route('/products', methods=['POST'])
 def create_product():
     """
-    Tạo product mới
+    Tạo product mới trong MongoDB
     Method: POST
     URL: http://localhost:5000/products
     Body (JSON):
@@ -68,43 +116,49 @@ def create_product():
         "stock": 20
     }
     """
-    global next_id
+    try:
+        # Lấy dữ liệu JSON từ request
+        data = request.get_json()
+        
+        # Kiểm tra dữ liệu đầu vào
+        if not data or 'name' not in data or 'price' not in data:
+            return jsonify({
+                "success": False,
+                "message": "Thiếu thông tin 'name' hoặc 'price'"
+            }), 400
+        
+        # Tạo document mới (không cần thêm _id, MongoDB tự tạo)
+        new_product = {
+            "name": data['name'],
+            "price": data['price'],
+            "stock": data.get('stock', 0)  # Mặc định stock = 0
+        }
+        
+        # Insert vào MongoDB
+        result = products_collection.insert_one(new_product)
+        
+        # Lấy ID vừa được tạo
+        new_product['_id'] = str(result.inserted_id)
+        
+        return jsonify({
+            "success": True,
+            "message": "Tạo product thành công",
+            "data": new_product
+        }), 201  # 201 = Created
     
-    # Lấy dữ liệu JSON từ request
-    data = request.get_json()
-    
-    # Kiểm tra dữ liệu đầu vào
-    if not data or 'name' not in data or 'price' not in data:
+    except Exception as e:
         return jsonify({
             "success": False,
-            "message": "Thiếu thông tin 'name' hoặc 'price'"
-        }), 400
-    
-    # Tạo product mới
-    new_product = {
-        "id": next_id,
-        "name": data['name'],
-        "price": data['price'],
-        "stock": data.get('stock', 0)  # Mặc định stock = 0 nếu không có
-    }
-    
-    # Thêm vào danh sách
-    products.append(new_product)
-    next_id += 1
-    
-    return jsonify({
-        "success": True,
-        "message": "Tạo product thành công",
-        "data": new_product
-    }), 201  # 201 = Created
+            "message": f"Lỗi khi tạo product: {str(e)}"
+        }), 500
 
 
-@app.route('/products/<int:product_id>', methods=['PUT'])
+@app.route('/products/<product_id>', methods=['PUT'])
 def update_product(product_id):
     """
-    Cập nhật thông tin product
+    Cập nhật thông tin product trong MongoDB
     Method: PUT
-    URL: http://localhost:5000/products/1
+    URL: http://localhost:5000/products/507f1f77bcf86cd799439011
     Body (JSON):
     {
         "name": "Tên mới",
@@ -112,57 +166,114 @@ def update_product(product_id):
         "stock": 25
     }
     """
-    product = find_product_by_id(product_id)
+    try:
+        # Chuyển đổi string ID sang ObjectId
+        obj_id = ObjectId(product_id)
+        
+        # Kiểm tra product có tồn tại không
+        existing_product = products_collection.find_one({"_id": obj_id})
+        if existing_product is None:
+            return jsonify({
+                "success": False,
+                "message": f"Product với ID {product_id} không tồn tại"
+            }), 404
+        
+        # Lấy dữ liệu cập nhật
+        data = request.get_json()
+        
+        # Tạo dict chứa các field cần update
+        update_data = {}
+        if 'name' in data:
+            update_data['name'] = data['name']
+        if 'price' in data:
+            update_data['price'] = data['price']
+        if 'stock' in data:
+            update_data['stock'] = data['stock']
+        
+        # Nếu không có gì để update
+        if not update_data:
+            return jsonify({
+                "success": False,
+                "message": "Không có dữ liệu để cập nhật"
+            }), 400
+        
+        # Update document trong MongoDB
+        products_collection.update_one(
+            {"_id": obj_id},
+            {"$set": update_data}
+        )
+        
+        # Lấy product đã được cập nhật
+        updated_product = products_collection.find_one({"_id": obj_id})
+        updated_product = serialize_product(updated_product)
+        
+        return jsonify({
+            "success": True,
+            "message": "Cập nhật product thành công",
+            "data": updated_product
+        }), 200
     
-    if product is None:
+    except InvalidId:
         return jsonify({
             "success": False,
-            "message": f"Product với ID {product_id} không tồn tại"
-        }), 404
+            "message": f"ID '{product_id}' không hợp lệ"
+        }), 400
     
-    # Lấy dữ liệu cập nhật
-    data = request.get_json()
-    
-    # Cập nhật các trường (giữ nguyên giá trị cũ nếu không có trong request)
-    product['name'] = data.get('name', product['name'])
-    product['price'] = data.get('price', product['price'])
-    product['stock'] = data.get('stock', product['stock'])
-    
-    return jsonify({
-        "success": True,
-        "message": "Cập nhật product thành công",
-        "data": product
-    }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Lỗi khi cập nhật product: {str(e)}"
+        }), 500
 
 
-@app.route('/products/<int:product_id>', methods=['DELETE'])
+@app.route('/products/<product_id>', methods=['DELETE'])
 def delete_product(product_id):
     """
-    Xóa product
+    Xóa product khỏi MongoDB
     Method: DELETE
-    URL: http://localhost:5000/products/1
+    URL: http://localhost:5000/products/507f1f77bcf86cd799439011
     """
-    product = find_product_by_id(product_id)
+    try:
+        # Chuyển đổi string ID sang ObjectId
+        obj_id = ObjectId(product_id)
+        
+        # Kiểm tra product có tồn tại không
+        existing_product = products_collection.find_one({"_id": obj_id})
+        if existing_product is None:
+            return jsonify({
+                "success": False,
+                "message": f"Product với ID {product_id} không tồn tại"
+            }), 404
+        
+        # Xóa document khỏi MongoDB
+        result = products_collection.delete_one({"_id": obj_id})
+        
+        return jsonify({
+            "success": True,
+            "message": f"Đã xóa product ID {product_id}",
+            "deleted_count": result.deleted_count
+        }), 200
     
-    if product is None:
+    except InvalidId:
         return jsonify({
             "success": False,
-            "message": f"Product với ID {product_id} không tồn tại"
-        }), 404
+            "message": f"ID '{product_id}' không hợp lệ"
+        }), 400
     
-    # Xóa khỏi danh sách
-    products.remove(product)
-    
-    return jsonify({
-        "success": True,
-        "message": f"Đã xóa product ID {product_id}"
-    }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Lỗi khi xóa product: {str(e)}"
+        }), 500
 
 
 @app.route('/', methods=['GET'])
 def home():
+    """Trang chủ API"""
     return jsonify({
-        "message": "🚀 Product API - Flask CRUD Demo",
+        "message": "🚀 Product API - Flask + MongoDB",
+        "database": "MongoDB (store_demo)",
+        "collection": "products",
         "endpoints": {
             "GET /products": "Lấy tất cả products",
             "GET /products/<id>": "Lấy 1 product theo ID",
