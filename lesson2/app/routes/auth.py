@@ -129,23 +129,21 @@ def login():
     if not user or not check_password_hash(user.password, data["password"]):
         return jsonify({"error": "Email hoặc password không đúng"}), 401
     
-    # MỚI: Tạo access_token với thời hạn ngắn (15 phút)
     access_token_jti = str(uuid.uuid4())
     access_token = jwt.encode({
         'user_id': user.id,
-        'jti': access_token_jti,  # JWT ID để tracking và revoke
-        'type': 'access',  # Phân biệt loại token
+        'jti': access_token_jti,
+        'type': 'access',
         'token_version': user.token_version,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
     }, Config.SECRET_KEY, algorithm="HS256")
     
-    # MỚI: Tạo refresh_token với thời hạn dài (7 ngày)
     refresh_token_jti = str(uuid.uuid4())
     refresh_token = jwt.encode({
         'user_id': user.id,
-        'jti': refresh_token_jti,  # jti riêng cho refresh token
-        'type': 'refresh',  # Đánh dấu đây là refresh token
-        'token_version': user.token_version,  # Gắn với version của user
+        'jti': refresh_token_jti,
+        'type': 'refresh',
+        'token_version': user.token_version,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
     }, Config.SECRET_KEY, algorithm="HS256")
 

@@ -69,7 +69,7 @@ def seed_database():
             book = Book(
                 title=f"{prefix} {topic} Vol.{i}",
                 author=author,
-                is_available=random.choice([True, True, True, False])  # 75% available
+                is_available=random.choice([True, True, True, False])
             )
             books.append(book)
             db.session.add(book)
