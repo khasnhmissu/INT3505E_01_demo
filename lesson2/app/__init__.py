@@ -8,7 +8,7 @@ from app.routes.auth import auth_bp
 from app.extension import db, cache
 import os
 
-def create_app():
+def create_app(config_name=None):
     app = Flask(__name__)
 
     # Swagger UI setup
@@ -42,7 +42,14 @@ def create_app():
 
     # CORS và Config
     CORS(app)
-    app.config.from_object('config.Config')
+    
+    if config_name:
+        from config import config_by_name
+        app.config.from_object(config_by_name[config_name])
+    else:
+        # Default: load từ config.Config
+        app.config.from_object('config.Config')
+         
     app.config['CACHE_TYPE'] = 'SimpleCache'
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300
     
@@ -57,6 +64,7 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix='/users')
     
     with app.app_context():
-        db.create_all()
+        if not app.config.get('TESTING', False):
+            db.create_all()
         
     return app
