@@ -1,0 +1,708 @@
+{
+	"info": {
+		"_postman_id": "7e2df05f-241d-4e85-9c28-cff368dff6a5",
+		"name": "Library Management API",
+		"description": "API for Library Management System with Authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48489161",
+		"_collection_link": "https://planetary-comet-2701111.postman.co/workspace/Nguy%E1%BB%85n-%C4%90%E1%BB%A9c-Kh%C3%A1nh's-Workspace~0fcc3fd8-302a-439b-87ba-1e0aef6bfc00/collection/48489161-7e2df05f-241d-4e85-9c28-cff368dff6a5?action=share&source=collection_link&creator=48489161"
+	},
+	"item": [
+		{
+			"name": "auth",
+			"item": [
+				{
+					"name": "Create Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Admin created successfully\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include(\"thành công\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Admin\",\n    \"email\": \"admin@gmail.com\",\n    \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/create-admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"create-admin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Token exists\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.exist;",
+									"    ",
+									"    // Lưu token vào biến collection",
+									"    pm.collectionVariables.set(\"admin_token\", jsonData.token);",
+									"});",
+									"",
+									"pm.test(\"User role is admin\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.user.role).to.eql(\"admin\");",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Nguyễn Văn A\",\n    \"email\": \"vanaaa@gmail.com\",\n    \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				}				
+			]
+		},
+		{
+			"name": "books",
+			"item": [
+				{
+					"name": "Get All Books",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/books/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"books",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Book by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/books/10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"books",
+								"10"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Book (admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set(\"book_id\", jsonData.id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Clean Code\",\n    \"author\": \"Robert Martin\",\n    \"is_available\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/books/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"books",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Book (admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Clean Code - Updated\",\n    \"author\": \"Robert C. Martin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/books/{{book_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"books",
+								"{{book_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Book (admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/books/{{book_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"books",
+								"{{book_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "loans",
+			"item": [
+				{
+					"name": "Checkout Book",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"var jsonData = pm.response.json();",
+									"pm.collectionVariables.set(\"loan_id\", jsonData.loan_id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"book_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/loans/checkout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"checkout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Loans",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/my-loans",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"my-loans"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Loan by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/{{loan_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"{{loan_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Loans (admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Loans (admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Loans (admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/user/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"user",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Return Book (admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/return/{{loan_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"return",
+								"{{loan_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Loan (admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/loans/{{loan_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"loans",
+								"{{loan_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "users",
+			"item": [
+				{
+					"name": "Get All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update My Info",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Nguyễn Văn A Updated\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Name\",\n    \"role\": \"admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "cache",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0LCJqdGkiOiIyYzQ5MmQ1YS1mNDY3LTQ4YTQtOWQ5YS00MThiYzE1OWJhYjciLCJ0eXBlIjoicmVmcmVzaCIsInRva2VuX3ZlcnNpb24iOjAsImV4cCI6MTc2MzM2MTEyMH0.eiBs1d7Wmkz5DKqYmKB-9_9qbIgehbScnE_snUPuQvM",
+			"type": "string"
+		},
+		{
+			"key": "user_token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0LCJqdGkiOiIyYzQ5MmQ1YS1mNDY3LTQ4YTQtOWQ5YS00MThiYzE1OWJhYjciLCJ0eXBlIjoicmVmcmVzaCIsInRva2VuX3ZlcnNpb24iOjAsImV4cCI6MTc2MzM2MTEyMH0.eiBs1d7Wmkz5DKqYmKB-9_9qbIgehbScnE_snUPuQvM",
+			"type": "string"
+		},
+		{
+			"key": "book_id",
+			"value": "10"
+		},
+		{
+			"key": "loan_id",
+			"value": "3"
+		}
+	]
+}
