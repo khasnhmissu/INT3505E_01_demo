@@ -6,9 +6,16 @@ Flask-Caching
 requests
 flasgger
 flask-cors
+flask-jwt-extended
 
 pytest==7.4.3
 pytest-cov==4.1.0
 coverage==7.3.2
 
 locust
+
+gunicorn==21.2.0
+prometheus-flask-exporter==0.23.0
+python-json-logger==2.0.7
+Flask-Limiter==3.5.0
+pybreaker==1.0.2

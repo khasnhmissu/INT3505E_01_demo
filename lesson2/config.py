@@ -6,6 +6,20 @@ class Config:
     
     SECRET_KEY = "my-secret-key"
     
+    # Observability Configuration
+    LOG_LEVEL = 'INFO'
+    LOG_FORMAT = 'json'  # 'json' or 'standard'
+    
+    # Rate Limiting Configuration
+    RATELIMIT_ENABLED = True
+    RATELIMIT_STORAGE_URI = "memory://"
+    RATELIMIT_STRATEGY = "fixed-window"
+    RATELIMIT_DEFAULT = "100 per minute"
+    
+    # Circuit Breaker Configuration
+    CIRCUIT_BREAKER_FAIL_MAX = 5
+    CIRCUIT_BREAKER_TIMEOUT = 60  # seconds
+    
 class TestConfig(Config):
     """Config cho Testing"""
     TESTING = True

@@ -1,11 +1,13 @@
-from flask import Flask, send_from_directory
+from flask import Flask, g, send_from_directory
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 from app.routes.books import books_bp
 from app.routes.loans import loans_bp
 from app.routes.users import users_bp
 from app.routes.auth import auth_bp
-from app.extension import db, cache
+from app.extension import db, cache, init_extensions
+from app.logging_config import setup_logging
+import logging
 import os
 
 def create_app(config_name=None):
@@ -53,9 +55,18 @@ def create_app(config_name=None):
     app.config['CACHE_TYPE'] = 'SimpleCache'
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300
     
-    # Init extension
-    db.init_app(app)
-    cache.init_app(app)
+    # Initialize extensions (includes Prometheus & Rate Limiter)
+    init_extensions(app)
+    
+    # Setup structured logging FIRST - QUAN TRỌNG!
+    logger, audit_logger = setup_logging(app)
+    app.logger = logger
+    
+    # Log application startup
+    app.logger.info("🚀 Application starting", extra={
+        'event': 'app_startup',
+        'config': config_name
+    })
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -63,8 +74,17 @@ def create_app(config_name=None):
     app.register_blueprint(loans_bp, url_prefix='/loans')
     app.register_blueprint(users_bp, url_prefix='/users')
     
+    # Health check endpoint
+    @app.route('/health')
+    def health_check():
+        app.logger.info("Health check called")
+        return {'status': 'healthy', 'service': 'library-management-api'}, 200
+    
+    
     with app.app_context():
         if not app.config.get('TESTING', False):
             db.create_all()
         
+    app.logger.info("✅ Application initialized successfully")
+    
     return app

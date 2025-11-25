@@ -1,10 +1,15 @@
 from flask import Blueprint, jsonify, request, make_response
 from app.models import Book
-from app.extension import db, cache
+from app.extension import db, cache, limiter  # Add limiter here
 from app.routes.auth import token_required, admin_required
 from datetime import datetime
 import hashlib
 import base64
+from app.logging_config import log_audit_event  # Add this
+from app.circuit_breaker import circuit_breaker, simulate_external_service  # Add this
+import logging
+
+logger = logging.getLogger(__name__)  # Add this
 
 books_bp = Blueprint("books", __name__)
 
@@ -224,11 +229,20 @@ def get_book(book_id):
 # DEMO: Cache-Control no-store cho dữ liệu nhạy cảm
 @books_bp.route("/", methods=["POST"])
 @admin_required
+@limiter.limit("10 per minute")
 def add_book(current_user):
     """
     DEMO: no-store - không cache ở đâu cả
+    UPDATED: Thêm rate limiting và audit logging
     """
     data = request.json
+    
+    logger.info("Creating new book", extra={
+        'title': data.get('title'), 
+        'user_id': current_user.id,
+        'username': current_user.name
+    })
+    
     book = Book(title=data["title"], 
                 author=data.get("author"),
                 is_available=data.get("is_available", True))
@@ -238,9 +252,20 @@ def add_book(current_user):
     # Xóa cache danh sách sách khi thêm mới
     cache.delete_memoized(get_books)
     
-    response = make_response(jsonify({"message": "Book added", "id": book.id}), 201)
+    log_audit_event(
+        action='CREATE',
+        resource_type='Book',
+        resource_id=book.id,
+        details={'title': book.title, 'author': book.author},
+        user_info=current_user
+    )
     
-    # DEMO: no-store - không được cache
+    logger.info(f"Book created successfully", extra={
+        'book_id': book.id,
+        'user_id': current_user.id  # Changed from .get('id')
+    })
+    
+    response = make_response(jsonify({"message": "Book added", "id": book.id}), 201)
     response.headers['Cache-Control'] = 'no-store'
     
     return response
@@ -250,6 +275,13 @@ def add_book(current_user):
 def update_book(current_user, book_id):
     data = request.json
     book = Book.query.get_or_404(book_id)
+    
+    # FIX: Use attribute access
+    logger.info(f"Updating book", extra={
+        'book_id': book_id, 
+        'user_id': current_user.id,  # Changed
+        'username': current_user.name  # Changed
+    })
    
     if "title" in data and data["title"]:  
         book.title = data["title"]
@@ -262,8 +294,21 @@ def update_book(current_user, book_id):
    
     db.session.commit()
     
-    # Xóa cache khi cập nhật
     cache.delete_memoized(get_books)
+    
+    # FIX: Pass current_user
+    log_audit_event(
+        action='UPDATE',
+        resource_type='Book',
+        resource_id=book_id,
+        details={'title': book.title},
+        user_info=current_user
+    )
+    
+    logger.info(f"Book updated successfully", extra={
+        'book_id': book_id,
+        'user_id': current_user.id  # Changed
+    })
     
     response = make_response(jsonify({"message": "Book updated"}))
     response.headers['Cache-Control'] = 'no-store'
@@ -272,13 +317,38 @@ def update_book(current_user, book_id):
 
 @books_bp.route("/<int:book_id>", methods=["DELETE"])
 @admin_required
+@limiter.limit("5 per minute")
 def delete_book(current_user, book_id):
     book = Book.query.get_or_404(book_id)
+    
+    book_title = book.title
+    
+    # FIX: Use attribute access
+    logger.warning(f"Deleting book", extra={
+        'book_id': book_id, 
+        'title': book_title, 
+        'user_id': current_user.id,  # Changed
+        'username': current_user.name  # Changed
+    })
+    
     db.session.delete(book)
     db.session.commit()
     
-    # Xóa cache khi xóa sách
     cache.delete_memoized(get_books)
+    
+    # FIX: Pass current_user
+    log_audit_event(
+        action='DELETE',
+        resource_type='Book',
+        resource_id=book_id,
+        details={'title': book_title},
+        user_info=current_user
+    )
+    
+    logger.info(f"Book deleted successfully", extra={
+        'book_id': book_id,
+        'user_id': current_user.id  # Changed
+    })
     
     response = make_response(jsonify({"message": "Book deleted"}))
     response.headers['Cache-Control'] = 'no-store'
@@ -341,3 +411,39 @@ def search_books():
     response.headers['Cache-Control'] = 'public, max-age=60' 
     response.headers['Vary'] = 'Accept-Language' 
     return response
+
+# ===== ENDPOINT MỚI CHO CIRCUIT BREAKER DEMO =====
+@books_bp.route('/external-enrichment/<int:book_id>', methods=['GET'])
+@token_required  # Dùng token_required của bạn thay vì jwt_required
+@circuit_breaker()  # Apply circuit breaker
+def enrich_book_data(current_user, book_id):
+    """
+    ENDPOINT MỚI: Demo circuit breaker - simulates external API call
+    Sử dụng @token_required thay vì @jwt_required để nhất quán với hệ thống cũ
+    """
+    try:
+        book = Book.query.get_or_404(book_id)
+        
+        # FIX: Use attribute access
+        logger.info(f"Fetching external data for book", extra={
+            'book_id': book_id, 
+            'user_id': current_user.id,  # Changed
+            'username': current_user.name  # Changed
+        })
+        
+        # Simulate external service call (e.g., fetching book reviews, ratings)
+        external_data = simulate_external_service(success_rate=0.5)  # 50% failure rate for demo
+        
+        return jsonify({
+            'book': {
+                'id': book.id,
+                'title': book.title,
+                'author': book.author,
+                'is_available': book.is_available
+            },
+            'external_data': external_data
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error enriching book data: {str(e)}")
+        raise
