@@ -1,6 +1,7 @@
-from flask import Flask, g, send_from_directory
+from flask import Flask, g, send_from_directory, jsonify
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
+from sqlalchemy import text  # ✅ THÊM DÒNG NÀY
 from app.routes.books import books_bp
 from app.routes.loans import loans_bp
 from app.routes.users import users_bp
@@ -45,20 +46,28 @@ def create_app(config_name=None):
     # CORS và Config
     CORS(app)
     
+    # Load config
     if config_name:
         from config import config_by_name
         app.config.from_object(config_by_name[config_name])
     else:
-        # Default: load từ config.Config
         app.config.from_object('config.Config')
-         
+    
+    # Cache config
     app.config['CACHE_TYPE'] = 'SimpleCache'
     app.config['CACHE_DEFAULT_TIMEOUT'] = 300
     
-    # Initialize extensions (includes Prometheus & Rate Limiter)
+    # Initialize extensions (Prometheus metrics sẽ được tạo ở đây)
     init_extensions(app)
     
-    # Setup structured logging FIRST - QUAN TRỌNG!
+    # ✅ Manual metrics endpoint
+    @app.route('/metrics')
+    def metrics_endpoint():
+        from prometheus_client import generate_latest, REGISTRY
+        from flask import Response
+        return Response(generate_latest(REGISTRY), mimetype='text/plain; version=0.0.4')
+    
+    # Setup logging
     logger, audit_logger = setup_logging(app)
     app.logger = logger
     
@@ -74,16 +83,32 @@ def create_app(config_name=None):
     app.register_blueprint(loans_bp, url_prefix='/loans')
     app.register_blueprint(users_bp, url_prefix='/users')
     
-    # Health check endpoint
+    # ✅ FIXED: Health check endpoint with text() wrapper
     @app.route('/health')
     def health_check():
-        app.logger.info("Health check called")
-        return {'status': 'healthy', 'service': 'library-management-api'}, 200
+        try:
+            # Use text() wrapper for SQLAlchemy 2.0+
+            db.session.execute(text('SELECT 1'))
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected'
+            }), 200
+        except Exception as e:
+            app.logger.error(f"Health check failed: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e)
+            }), 503
     
-    
+    # Create tables
     with app.app_context():
         if not app.config.get('TESTING', False):
-            db.create_all()
+            try:
+                db.create_all()
+                app.logger.info("✅ Database tables created")
+            except Exception as e:
+                app.logger.error(f"❌ Database error: {str(e)}")
+                raise
         
     app.logger.info("✅ Application initialized successfully")
     

@@ -262,7 +262,7 @@ def add_book(current_user):
     
     logger.info(f"Book created successfully", extra={
         'book_id': book.id,
-        'user_id': current_user.id  # Changed from .get('id')
+        'user_id': current_user.id 
     })
     
     response = make_response(jsonify({"message": "Book added", "id": book.id}), 201)
@@ -296,7 +296,6 @@ def update_book(current_user, book_id):
     
     cache.delete_memoized(get_books)
     
-    # FIX: Pass current_user
     log_audit_event(
         action='UPDATE',
         resource_type='Book',
@@ -336,7 +335,6 @@ def delete_book(current_user, book_id):
     
     cache.delete_memoized(get_books)
     
-    # FIX: Pass current_user
     log_audit_event(
         action='DELETE',
         resource_type='Book',

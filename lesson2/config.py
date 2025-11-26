@@ -1,14 +1,18 @@
 import os
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = f"postgresql://myuser:mypassword@localhost:5432/mydatabase"
+    # ✅ ĐỌC TỪ ENVIRONMENT VARIABLE
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'DATABASE_URL',
+        'postgresql://myuser:mypassword@localhost:5432/mydatabase'  # fallback cho local dev
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    SECRET_KEY = "my-secret-key"
+    SECRET_KEY = os.getenv('SECRET_KEY', 'my-secret-key')
     
     # Observability Configuration
-    LOG_LEVEL = 'INFO'
-    LOG_FORMAT = 'json'  # 'json' or 'standard'
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_FORMAT = os.getenv('LOG_FORMAT', 'json')
     
     # Rate Limiting Configuration
     RATELIMIT_ENABLED = True
@@ -17,18 +21,14 @@ class Config:
     RATELIMIT_DEFAULT = "100 per minute"
     
     # Circuit Breaker Configuration
-    CIRCUIT_BREAKER_FAIL_MAX = 5
-    CIRCUIT_BREAKER_TIMEOUT = 60  # seconds
+    CIRCUIT_BREAKER_FAIL_MAX = int(os.getenv('CIRCUIT_BREAKER_FAIL_MAX', '5'))
+    CIRCUIT_BREAKER_TIMEOUT = int(os.getenv('CIRCUIT_BREAKER_TIMEOUT', '60'))
     
 class TestConfig(Config):
     """Config cho Testing"""
     TESTING = True
-    # Dùng SQLite in-memory cho test - NHANH, SẠCH, KHÔNG CẦN DOCKER
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-    # Hoặc dùng file SQLite nếu muốn debug
-    # SQLALCHEMY_DATABASE_URI = 'sqlite:///test.db'
     WTF_CSRF_ENABLED = False
-    
     
 class DevelopmentConfig(Config):
     """Config cho Development"""
