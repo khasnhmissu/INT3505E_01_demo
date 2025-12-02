@@ -8,7 +8,7 @@ from app.services.event_bus import event_bus
 # Event handlers - Demo Event-Driven Pattern
 async def log_order_created(data):
     """Handler 1: Log khi order được tạo"""
-    print(f"[Logger Service] Order created: {data['order_id']}")
+    print(f"[Logger Service]Order created: {data['order_id']}")
 
 async def notify_inventory(data):
     """Handler 2: Thông báo cho inventory service"""
@@ -26,7 +26,7 @@ async def update_analytics(data):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Create tables & Subscribe event handlers
-    print("🚀 Starting up...")
+    print("Starting up...")
     Base.metadata.create_all(bind=engine)
     
     # Subscribe multiple handlers to same event (Event-Driven Pattern)
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    print("\n👋 Shutting down...")
+    print("\nShutting down...")
 
 # Create FastAPI app
 app = FastAPI(
